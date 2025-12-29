@@ -15,9 +15,12 @@ import {
   Minimize2, 
   Palette,
   Loader2,
-  Heart
+  Heart,
+  Save
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { generateIDCard, saveDesign } from "@/lib/api";
+import { toast } from "@/hooks/use-toast";
 
 type CardStyle = "corporate" | "student" | "futuristic" | "minimal" | "creative";
 
@@ -31,35 +34,113 @@ const styles: { id: CardStyle; name: string; icon: React.ReactNode; description:
 
 interface CardCreatorProps {
   isAuthenticated?: boolean;
+  userId?: string;
   onLoginRequired?: () => void;
 }
 
-export function CardCreator({ isAuthenticated, onLoginRequired }: CardCreatorProps) {
+export function CardCreator({ isAuthenticated, userId, onLoginRequired }: CardCreatorProps) {
   const [selectedStyle, setSelectedStyle] = useState<CardStyle>("futuristic");
   const [isVertical, setIsVertical] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [name, setName] = useState("John Doe");
   const [title, setTitle] = useState("Software Engineer");
   const [customPrompt, setCustomPrompt] = useState("");
+  const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
 
   const handleGenerate = async () => {
-    if (!isAuthenticated && onLoginRequired) {
-      onLoginRequired();
+    setIsGenerating(true);
+    
+    try {
+      const result = await generateIDCard({
+        name,
+        title,
+        style: selectedStyle,
+        customPrompt: customPrompt || undefined,
+        isVertical,
+      });
+
+      if (result.success && result.imageUrl) {
+        setGeneratedImageUrl(result.imageUrl);
+        toast({
+          title: "Card generated!",
+          description: "Your AI-powered ID card is ready.",
+        });
+      } else {
+        toast({
+          title: "Generation failed",
+          description: result.error || "Failed to generate ID card. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!isAuthenticated || !userId) {
+      onLoginRequired?.();
       return;
     }
+
+    setIsSaving(true);
     
-    setIsGenerating(true);
-    // Simulate generation
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    setIsGenerating(false);
+    try {
+      const { error } = await saveDesign({
+        userId,
+        name,
+        title,
+        style: selectedStyle,
+        isVertical,
+        imageUrl: generatedImageUrl || undefined,
+        customPrompt: customPrompt || undefined,
+      });
+
+      if (error) {
+        toast({
+          title: "Save failed",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Design saved!",
+          description: "Your design has been saved to your profile.",
+        });
+      }
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleDownload = () => {
-    if (!isAuthenticated && onLoginRequired) {
-      onLoginRequired();
-      return;
+    if (generatedImageUrl) {
+      // For base64 images, create a download link
+      const link = document.createElement("a");
+      link.href = generatedImageUrl;
+      link.download = `id-card-${name.replace(/\s+/g, "-").toLowerCase()}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast({
+        title: "Download started",
+        description: "Your ID card is being downloaded.",
+      });
+    } else {
+      toast({
+        title: "No image to download",
+        description: "Please generate an ID card first.",
+        variant: "destructive",
+      });
     }
-    // Download logic would go here
   };
 
   return (
@@ -201,7 +282,14 @@ export function CardCreator({ isAuthenticated, onLoginRequired }: CardCreatorPro
                   </>
                 )}
               </Button>
-              <Button variant="glass" size="lg" onClick={() => setSelectedStyle(styles[Math.floor(Math.random() * styles.length)].id)}>
+              <Button 
+                variant="glass" 
+                size="lg" 
+                onClick={() => {
+                  setSelectedStyle(styles[Math.floor(Math.random() * styles.length)].id);
+                  setGeneratedImageUrl(null);
+                }}
+              >
                 <RefreshCw className="w-5 h-5" />
                 Randomize
               </Button>
@@ -227,21 +315,35 @@ export function CardCreator({ isAuthenticated, onLoginRequired }: CardCreatorPro
                   animate={isGenerating ? { opacity: [1, 0.5, 1] } : {}}
                   transition={{ duration: 1, repeat: isGenerating ? Infinity : 0 }}
                 >
-                  <IDCard
-                    style={selectedStyle}
-                    name={name}
-                    title={title}
-                    id={`ID-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 9999)).padStart(4, '0')}`}
-                    isVertical={isVertical}
-                    className="w-full"
-                  />
+                  {generatedImageUrl ? (
+                    <div className={cn(
+                      "rounded-xl overflow-hidden shadow-xl",
+                      isVertical ? "aspect-[1/1.586]" : "aspect-[1.586/1]"
+                    )}>
+                      <img 
+                        src={generatedImageUrl} 
+                        alt="Generated ID Card" 
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  ) : (
+                    <IDCard
+                      style={selectedStyle}
+                      name={name}
+                      title={title}
+                      id={`ID-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 9999)).padStart(4, '0')}`}
+                      isVertical={isVertical}
+                      className="w-full"
+                    />
+                  )}
                 </motion.div>
 
                 {isGenerating && (
                   <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-sm rounded-2xl">
-                    <div className="flex items-center gap-3 text-primary">
-                      <Loader2 className="w-8 h-8 animate-spin" />
-                      <span className="font-display font-semibold">Generating...</span>
+                    <div className="flex flex-col items-center gap-3 text-primary">
+                      <Loader2 className="w-10 h-10 animate-spin" />
+                      <span className="font-display font-semibold">AI is creating your card...</span>
+                      <span className="text-sm text-muted-foreground">This may take a moment</span>
                     </div>
                   </div>
                 )}
@@ -249,13 +351,27 @@ export function CardCreator({ isAuthenticated, onLoginRequired }: CardCreatorPro
 
               {/* Download Actions */}
               <div className="flex gap-3 mt-6">
-                <Button variant="neon" className="flex-1" onClick={handleDownload}>
+                <Button 
+                  variant="neon" 
+                  className="flex-1" 
+                  onClick={handleDownload}
+                  disabled={!generatedImageUrl}
+                >
                   <Download className="w-5 h-5" />
                   Download PNG
                 </Button>
-                <Button variant="glass" className="flex-1" onClick={handleDownload}>
-                  <Download className="w-5 h-5" />
-                  Download PDF
+                <Button 
+                  variant="glass" 
+                  className="flex-1" 
+                  onClick={handleSave}
+                  disabled={isSaving}
+                >
+                  {isSaving ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <Save className="w-5 h-5" />
+                  )}
+                  Save Design
                 </Button>
                 <Button variant="outline" size="icon">
                   <Heart className="w-5 h-5" />

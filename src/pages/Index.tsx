@@ -6,39 +6,45 @@ import { CardCreator } from "@/components/CardCreator";
 import { FeaturesSection } from "@/components/FeaturesSection";
 import { Footer } from "@/components/Footer";
 import { AuthModal } from "@/components/AuthModal";
+import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
 import { Helmet } from "react-helmet-async";
 
 const Index = () => {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [user, setUser] = useState<{ name: string; email: string; avatar?: string } | null>(null);
+  const { user, profile, isAuthenticated, signInWithGoogle, signOut, loading } = useAuth();
 
   const handleLogin = () => {
     setIsAuthModalOpen(true);
   };
 
   const handleGoogleLogin = async () => {
-    // Simulate login - this will be replaced with actual Google OAuth
-    setIsAuthenticated(true);
-    setUser({
-      name: "John Doe",
-      email: "john@example.com",
-    });
-    setIsAuthModalOpen(false);
-    toast({
-      title: "Welcome!",
-      description: "You've successfully signed in.",
-    });
+    const { error } = await signInWithGoogle();
+    if (error) {
+      toast({
+        title: "Sign in failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      setIsAuthModalOpen(false);
+    }
   };
 
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-    setUser(null);
-    toast({
-      title: "Signed out",
-      description: "You've been signed out successfully.",
-    });
+  const handleLogout = async () => {
+    const { error } = await signOut();
+    if (error) {
+      toast({
+        title: "Sign out failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Signed out",
+        description: "You've been signed out successfully.",
+      });
+    }
   };
 
   const handleLoginRequired = () => {
@@ -48,6 +54,16 @@ const Index = () => {
       description: "Please sign in to access this feature.",
     });
   };
+
+  const userInfo = profile ? {
+    name: profile.display_name || "User",
+    email: profile.email || "",
+    avatar: profile.avatar_url || undefined,
+  } : user ? {
+    name: user.user_metadata?.full_name || user.email?.split("@")[0] || "User",
+    email: user.email || "",
+    avatar: user.user_metadata?.avatar_url,
+  } : null;
 
   return (
     <>
@@ -60,7 +76,7 @@ const Index = () => {
       <div className="min-h-screen bg-background">
         <Header
           isAuthenticated={isAuthenticated}
-          user={user}
+          user={userInfo}
           onLogin={handleLogin}
           onLogout={handleLogout}
         />
@@ -74,6 +90,7 @@ const Index = () => {
           
           <CardCreator
             isAuthenticated={isAuthenticated}
+            userId={user?.id}
             onLoginRequired={handleLoginRequired}
           />
           
