@@ -14,7 +14,84 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          display_name: string | null
+          email: string | null
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          email?: string | null
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          email?: string | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      saved_designs: {
+        Row: {
+          created_at: string
+          custom_prompt: string | null
+          id: string
+          image_url: string | null
+          is_favorite: boolean
+          is_public: boolean
+          is_vertical: boolean
+          metadata: Json | null
+          name: string
+          style: string
+          title: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          custom_prompt?: string | null
+          id?: string
+          image_url?: string | null
+          is_favorite?: boolean
+          is_public?: boolean
+          is_vertical?: boolean
+          metadata?: Json | null
+          name: string
+          style?: string
+          title?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          custom_prompt?: string | null
+          id?: string
+          image_url?: string | null
+          is_favorite?: boolean
+          is_public?: boolean
+          is_vertical?: boolean
+          metadata?: Json | null
+          name?: string
+          style?: string
+          title?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

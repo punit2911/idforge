@@ -1,1 +1,4 @@
 project_id = "dvwajqfqpiggyslnrteu"
+
+[functions.generate-id-card]
+verify_jwt = false
