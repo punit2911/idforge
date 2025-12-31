@@ -52,7 +52,7 @@ export function Footer() {
 
         {/* Bottom */}
         <div className="mt-12 pt-8 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
-          <p>© 2024 IDForge. All rights reserved.</p>
+          <p>© 2026 IDForge. Made by Punit Gavali. All rights reserved.</p>
           <div className="flex gap-6">
             <a href="#" className="hover:text-foreground transition-colors">Privacy</a>
             <a href="#" className="hover:text-foreground transition-colors">Terms</a>
