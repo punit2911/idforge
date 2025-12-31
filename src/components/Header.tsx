@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Menu, X, CreditCard, Sparkles, User, LogOut, Moon, Sun } from "lucide-react";
+import { Menu, X, CreditCard, Sparkles, User, LogOut, Moon, Sun, LayoutDashboard } from "lucide-react";
 import { useTheme } from "@/hooks/useTheme";
 
 interface HeaderProps {
@@ -68,6 +69,12 @@ export function Header({ isAuthenticated, user, onLogin, onLogout }: HeaderProps
 
           {isAuthenticated && user ? (
             <div className="hidden sm:flex items-center gap-3">
+              <Link to="/dashboard">
+                <Button variant="ghost" size="sm">
+                  <LayoutDashboard className="w-4 h-4 mr-2" />
+                  Dashboard
+                </Button>
+              </Link>
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center">
                   {user.avatar ? (
@@ -121,10 +128,18 @@ export function Header({ isAuthenticated, user, onLogin, onLogout }: HeaderProps
                 Features
               </a>
               {isAuthenticated ? (
-                <Button variant="ghost" onClick={onLogout} className="justify-start">
-                  <LogOut className="w-4 h-4 mr-2" />
-                  Sign Out
-                </Button>
+                <>
+                  <Link to="/dashboard" onClick={() => setMobileMenuOpen(false)}>
+                    <Button variant="ghost" className="w-full justify-start">
+                      <LayoutDashboard className="w-4 h-4 mr-2" />
+                      Dashboard
+                    </Button>
+                  </Link>
+                  <Button variant="ghost" onClick={onLogout} className="justify-start">
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Sign Out
+                  </Button>
+                </>
               ) : (
                 <Button variant="neon" onClick={onLogin}>
                   <Sparkles className="w-4 h-4" />
