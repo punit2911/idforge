@@ -16,11 +16,12 @@ interface AuthModalProps {
 export function AuthModal({ isOpen, onClose, onGoogleLogin }: AuthModalProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   
-  const { signInWithEmail, signUpWithEmail } = useAuth();
+  const { signInWithEmail, signUpWithEmail, resetPassword } = useAuth();
 
   const handleGoogleLogin = async () => {
     setIsLoading(true);
@@ -77,6 +78,30 @@ export function AuthModal({ isOpen, onClose, onGoogleLogin }: AuthModalProps) {
     }
   };
 
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    try {
+      const { error } = await resetPassword(email);
+      if (error) {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Check your email",
+          description: "We've sent you a password reset link.",
+        });
+        setIsForgotPassword(false);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -118,80 +143,141 @@ export function AuthModal({ isOpen, onClose, onGoogleLogin }: AuthModalProps) {
             </div>
 
             <h2 className="font-display text-2xl font-bold mb-2">
-              {isSignUp ? "Create Account" : "Welcome to IDForge"}
+              {isForgotPassword 
+                ? "Reset Password" 
+                : isSignUp 
+                  ? "Create Account" 
+                  : "Welcome to IDForge"}
             </h2>
             <p className="text-muted-foreground mb-6">
-              {isSignUp 
-                ? "Sign up to save your designs and access premium features."
-                : "Sign in to save your designs, access premium features, and more."}
+              {isForgotPassword
+                ? "Enter your email and we'll send you a reset link."
+                : isSignUp 
+                  ? "Sign up to save your designs and access premium features."
+                  : "Sign in to save your designs, access premium features, and more."}
             </p>
 
-            {/* Email Form */}
-            <form onSubmit={handleEmailAuth} className="space-y-4 mb-6">
-              {isSignUp && (
+            {/* Forgot Password Form */}
+            {isForgotPassword ? (
+              <form onSubmit={handleForgotPassword} className="space-y-4 mb-6">
                 <div className="text-left">
-                  <Label htmlFor="name" className="text-sm">Name</Label>
+                  <Label htmlFor="reset-email" className="text-sm">Email</Label>
                   <div className="relative mt-1">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
-                      id="name"
-                      type="text"
-                      placeholder="Your name"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
+                      id="reset-email"
+                      type="email"
+                      placeholder="you@example.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
                       className="pl-10"
+                      required
                     />
                   </div>
                 </div>
-              )}
-              
-              <div className="text-left">
-                <Label htmlFor="email" className="text-sm">Email</Label>
-                <div className="relative mt-1">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="you@example.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="pl-10"
-                    required
-                  />
-                </div>
-              </div>
 
-              <div className="text-left">
-                <Label htmlFor="password" className="text-sm">Password</Label>
-                <div className="relative mt-1">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="pl-10"
-                    required
-                    minLength={6}
-                  />
-                </div>
-              </div>
+                <Button
+                  type="submit"
+                  variant="neon"
+                  size="lg"
+                  className="w-full"
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    "Send Reset Link"
+                  )}
+                </Button>
 
-              <Button
-                type="submit"
-                variant="neon"
-                size="lg"
-                className="w-full"
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : (
-                  isSignUp ? "Create Account" : "Sign In"
-                )}
-              </Button>
-            </form>
+                <button
+                  type="button"
+                  onClick={() => setIsForgotPassword(false)}
+                  className="text-sm text-primary hover:underline"
+                >
+                  Back to Sign In
+                </button>
+              </form>
+            ) : (
+              <>
+                {/* Email Form */}
+                <form onSubmit={handleEmailAuth} className="space-y-4 mb-6">
+                  {isSignUp && (
+                    <div className="text-left">
+                      <Label htmlFor="name" className="text-sm">Name</Label>
+                      <div className="relative mt-1">
+                        <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <Input
+                          id="name"
+                          type="text"
+                          placeholder="Your name"
+                          value={name}
+                          onChange={(e) => setName(e.target.value)}
+                          className="pl-10"
+                        />
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="text-left">
+                    <Label htmlFor="email" className="text-sm">Email</Label>
+                    <div className="relative mt-1">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id="email"
+                        type="email"
+                        placeholder="you@example.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="pl-10"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="text-left">
+                    <Label htmlFor="password" className="text-sm">Password</Label>
+                    <div className="relative mt-1">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id="password"
+                        type="password"
+                        placeholder="••••••••"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="pl-10"
+                        required
+                        minLength={6}
+                      />
+                    </div>
+                  </div>
+
+                  {!isSignUp && (
+                    <div className="text-right">
+                      <button
+                        type="button"
+                        onClick={() => setIsForgotPassword(true)}
+                        className="text-sm text-primary hover:underline"
+                      >
+                        Forgot password?
+                      </button>
+                    </div>
+                  )}
+
+                  <Button
+                    type="submit"
+                    variant="neon"
+                    size="lg"
+                    className="w-full"
+                    disabled={isLoading}
+                  >
+                    {isLoading ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      isSignUp ? "Create Account" : "Sign In"
+                    )}
+                  </Button>
+                </form>
 
             {/* Divider */}
             <div className="relative my-6">
@@ -236,17 +322,19 @@ export function AuthModal({ isOpen, onClose, onGoogleLogin }: AuthModalProps) {
               Continue with Google
             </Button>
 
-            {/* Toggle Sign Up / Sign In */}
-            <p className="text-sm text-muted-foreground mt-6">
-              {isSignUp ? "Already have an account? " : "Don't have an account? "}
-              <button
-                type="button"
-                onClick={() => setIsSignUp(!isSignUp)}
-                className="text-primary hover:underline font-medium"
-              >
-                {isSignUp ? "Sign In" : "Sign Up"}
-              </button>
-            </p>
+                {/* Toggle Sign Up / Sign In */}
+                <p className="text-sm text-muted-foreground mt-6">
+                  {isSignUp ? "Already have an account? " : "Don't have an account? "}
+                  <button
+                    type="button"
+                    onClick={() => setIsSignUp(!isSignUp)}
+                    className="text-primary hover:underline font-medium"
+                  >
+                    {isSignUp ? "Sign In" : "Sign Up"}
+                  </button>
+                </p>
+              </>
+            )}
 
             <p className="text-xs text-muted-foreground mt-4">
               By signing in, you agree to our Terms of Service and Privacy Policy.
