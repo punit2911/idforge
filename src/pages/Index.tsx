@@ -6,6 +6,7 @@ import { CardCreator } from "@/components/CardCreator";
 import { FeaturesSection } from "@/components/FeaturesSection";
 import { Footer } from "@/components/Footer";
 import { AuthModal } from "@/components/AuthModal";
+import { ChatBot } from "@/components/ChatBot";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
 import { Helmet } from "react-helmet-async";
@@ -104,6 +105,8 @@ const Index = () => {
           onClose={() => setIsAuthModalOpen(false)}
           onGoogleLogin={handleGoogleLogin}
         />
+
+        <ChatBot />
       </div>
     </>
   );
