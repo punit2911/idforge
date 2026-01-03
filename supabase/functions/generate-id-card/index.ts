@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { name, title, style, customPrompt, isVertical } = await req.json();
+    const { name, title, style, customPrompt, isVertical, userPhotoUrl } = await req.json();
     
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
@@ -44,6 +44,11 @@ serve(async (req) => {
         styleDescription = "modern professional identity card design";
     }
 
+    // Build the prompt based on whether user photo is provided
+    const photoInstructions = userPhotoUrl 
+      ? `IMPORTANT: The attached photo MUST be used as the person's photo on the ID card. Place this photo in the designated photo area of the card. Keep the face clearly visible and well-integrated into the card design.`
+      : `Include a placeholder for a photo (a stylized silhouette or avatar area)`;
+
     const prompt = `Generate a high-quality ${orientation} identity card design image.
     
 Card Details:
@@ -54,7 +59,7 @@ Card Details:
 Design Style: ${styleDescription}
 
 The card should include:
-1. A placeholder for a photo (a stylized silhouette or avatar area)
+1. ${photoInstructions}
 2. Name prominently displayed
 3. Title/role text
 4. A unique ID number area
@@ -67,7 +72,27 @@ ${customPrompt ? `Additional requirements: ${customPrompt}` : ""}
 Make it look like a real, premium identity card with depth, shadows, and high production value. The design should be photorealistic and ready for printing.
 Ultra high resolution.`;
 
-    console.log("Generating ID card with prompt:", prompt.substring(0, 200) + "...");
+    console.log("Generating ID card with photo:", !!userPhotoUrl);
+    console.log("Prompt preview:", prompt.substring(0, 300) + "...");
+
+    // Build message content - include image if user photo is provided
+    let messageContent: any;
+    if (userPhotoUrl) {
+      messageContent = [
+        {
+          type: "text",
+          text: prompt,
+        },
+        {
+          type: "image_url",
+          image_url: {
+            url: userPhotoUrl,
+          },
+        },
+      ];
+    } else {
+      messageContent = prompt;
+    }
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -80,7 +105,7 @@ Ultra high resolution.`;
         messages: [
           {
             role: "user",
-            content: prompt,
+            content: messageContent,
           },
         ],
         modalities: ["image", "text"],

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -16,11 +16,15 @@ import {
   Palette,
   Loader2,
   Heart,
-  Save
+  Save,
+  Upload,
+  X,
+  Camera
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { generateIDCard, saveDesign } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 type CardStyle = "corporate" | "student" | "futuristic" | "minimal" | "creative";
 
@@ -43,10 +47,105 @@ export function CardCreator({ isAuthenticated, userId, onLoginRequired }: CardCr
   const [isVertical, setIsVertical] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [name, setName] = useState("John Doe");
   const [title, setTitle] = useState("Software Engineer");
   const [customPrompt, setCustomPrompt] = useState("");
   const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
+  const [userPhotoUrl, setUserPhotoUrl] = useState<string | null>(null);
+  const [userPhotoPreview, setUserPhotoPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith("image/")) {
+      toast({
+        title: "Invalid file",
+        description: "Please upload an image file (JPG, PNG, etc.)",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "File too large",
+        description: "Please upload an image smaller than 5MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Show preview immediately
+    const previewUrl = URL.createObjectURL(file);
+    setUserPhotoPreview(previewUrl);
+
+    // If authenticated, upload to storage
+    if (isAuthenticated && userId) {
+      setIsUploading(true);
+      try {
+        const fileExt = file.name.split(".").pop();
+        const fileName = `${userId}/${Date.now()}.${fileExt}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from("user-photos")
+          .upload(fileName, file);
+
+        if (uploadError) {
+          throw uploadError;
+        }
+
+        // Get signed URL for the uploaded file (valid for 1 hour)
+        const { data: signedData, error: signedError } = await supabase.storage
+          .from("user-photos")
+          .createSignedUrl(fileName, 3600);
+
+        if (signedError) {
+          throw signedError;
+        }
+
+        setUserPhotoUrl(signedData.signedUrl);
+        toast({
+          title: "Photo uploaded",
+          description: "Your photo will be used in the ID card generation.",
+        });
+      } catch (error) {
+        console.error("Upload error:", error);
+        toast({
+          title: "Upload failed",
+          description: "Failed to upload photo. Using local preview.",
+          variant: "destructive",
+        });
+        // Use base64 as fallback
+        const reader = new FileReader();
+        reader.onload = () => {
+          setUserPhotoUrl(reader.result as string);
+        };
+        reader.readAsDataURL(file);
+      } finally {
+        setIsUploading(false);
+      }
+    } else {
+      // Not authenticated - use base64
+      const reader = new FileReader();
+      reader.onload = () => {
+        setUserPhotoUrl(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removePhoto = () => {
+    setUserPhotoUrl(null);
+    setUserPhotoPreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
 
   const handleGenerate = async () => {
     setIsGenerating(true);
@@ -58,13 +157,16 @@ export function CardCreator({ isAuthenticated, userId, onLoginRequired }: CardCr
         style: selectedStyle,
         customPrompt: customPrompt || undefined,
         isVertical,
+        userPhotoUrl: userPhotoUrl || undefined,
       });
 
       if (result.success && result.imageUrl) {
         setGeneratedImageUrl(result.imageUrl);
         toast({
           title: "Card generated!",
-          description: "Your AI-powered ID card is ready.",
+          description: userPhotoUrl 
+            ? "Your AI-powered ID card with your photo is ready."
+            : "Your AI-powered ID card is ready.",
         });
       } else {
         toast({
@@ -223,6 +325,59 @@ export function CardCreator({ isAuthenticated, userId, onLoginRequired }: CardCr
               </div>
             </div>
 
+            {/* Photo Upload */}
+            <div className="space-y-4">
+              <Label className="text-lg font-display font-semibold">Your Photo</Label>
+              <p className="text-sm text-muted-foreground">
+                Upload a photo to include on your ID card. AI will integrate it into the design.
+              </p>
+              
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handlePhotoUpload}
+                className="hidden"
+              />
+              
+              {userPhotoPreview ? (
+                <div className="relative inline-block">
+                  <div className="w-24 h-28 rounded-lg overflow-hidden border-2 border-primary/50">
+                    <img 
+                      src={userPhotoPreview} 
+                      alt="Your photo" 
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <button
+                    onClick={removePhoto}
+                    className="absolute -top-2 -right-2 p-1 bg-destructive text-destructive-foreground rounded-full hover:bg-destructive/80 transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                  {isUploading && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-background/50 rounded-lg">
+                      <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <Button
+                  variant="outline"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="gap-2"
+                  disabled={isUploading}
+                >
+                  {isUploading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Camera className="w-4 h-4" />
+                  )}
+                  Upload Photo
+                </Button>
+              )}
+            </div>
+
             {/* Personal Details */}
             <div className="space-y-4">
               <Label className="text-lg font-display font-semibold">Card Details</Label>
@@ -267,7 +422,7 @@ export function CardCreator({ isAuthenticated, userId, onLoginRequired }: CardCr
                 variant="hero"
                 size="lg"
                 onClick={handleGenerate}
-                disabled={isGenerating}
+                disabled={isGenerating || isUploading}
                 className="flex-1"
               >
                 {isGenerating ? (
@@ -332,6 +487,7 @@ export function CardCreator({ isAuthenticated, userId, onLoginRequired }: CardCr
                       name={name}
                       title={title}
                       id={`ID-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 9999)).padStart(4, '0')}`}
+                      imageUrl={userPhotoPreview || undefined}
                       isVertical={isVertical}
                       className="w-full"
                     />
@@ -343,7 +499,9 @@ export function CardCreator({ isAuthenticated, userId, onLoginRequired }: CardCr
                     <div className="flex flex-col items-center gap-3 text-primary">
                       <Loader2 className="w-10 h-10 animate-spin" />
                       <span className="font-display font-semibold">AI is creating your card...</span>
-                      <span className="text-sm text-muted-foreground">This may take a moment</span>
+                      <span className="text-sm text-muted-foreground">
+                        {userPhotoUrl ? "Integrating your photo..." : "This may take a moment"}
+                      </span>
                     </div>
                   </div>
                 )}

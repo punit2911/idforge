@@ -6,6 +6,7 @@ interface GenerateCardParams {
   style: string;
   customPrompt?: string;
   isVertical?: boolean;
+  userPhotoUrl?: string;
 }
 
 interface GenerateCardResult {
