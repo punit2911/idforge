@@ -2,10 +2,13 @@ import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { MessageCircle, X, Send, Loader2, Bot, User } from "lucide-react";
+import { MessageCircle, X, Send, Loader2, Bot, User, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 interface Message {
+  id?: string;
   role: "user" | "assistant";
   content: string;
 }
@@ -13,6 +16,7 @@ interface Message {
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat-assistant`;
 
 export function ChatBot() {
+  const { user, isAuthenticated } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -22,6 +26,7 @@ export function ChatBot() {
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [hasLoadedHistory, setHasLoadedHistory] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -32,6 +37,63 @@ export function ChatBot() {
     scrollToBottom();
   }, [messages]);
 
+  // Load chat history when user opens chat and is authenticated
+  useEffect(() => {
+    if (isOpen && isAuthenticated && user?.id && !hasLoadedHistory) {
+      loadChatHistory();
+    }
+  }, [isOpen, isAuthenticated, user?.id, hasLoadedHistory]);
+
+  const loadChatHistory = async () => {
+    if (!user?.id) return;
+
+    const { data, error } = await supabase
+      .from("chat_messages")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: true })
+      .limit(50);
+
+    if (!error && data && data.length > 0) {
+      const historicalMessages: Message[] = data.map((msg) => ({
+        id: msg.id,
+        role: msg.role as "user" | "assistant",
+        content: msg.content,
+      }));
+      setMessages([
+        {
+          role: "assistant",
+          content: "Hi! I'm your IDForge Assistant. How can I help you create amazing ID cards today?",
+        },
+        ...historicalMessages,
+      ]);
+    }
+    setHasLoadedHistory(true);
+  };
+
+  const saveMessage = async (role: "user" | "assistant", content: string) => {
+    if (!user?.id || !content) return;
+
+    await supabase.from("chat_messages").insert({
+      user_id: user.id,
+      role,
+      content,
+    });
+  };
+
+  const clearHistory = async () => {
+    if (!user?.id) return;
+
+    await supabase.from("chat_messages").delete().eq("user_id", user.id);
+
+    setMessages([
+      {
+        role: "assistant",
+        content: "Hi! I'm your IDForge Assistant. How can I help you create amazing ID cards today?",
+      },
+    ]);
+  };
+
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
 
@@ -39,6 +101,11 @@ export function ChatBot() {
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
     setIsLoading(true);
+
+    // Save user message if authenticated
+    if (isAuthenticated) {
+      saveMessage("user", userMessage.content);
+    }
 
     let assistantContent = "";
 
@@ -110,6 +177,11 @@ export function ChatBot() {
           }
         }
       }
+
+      // Save assistant message if authenticated
+      if (isAuthenticated && assistantContent) {
+        saveMessage("assistant", assistantContent);
+      }
     } catch (error) {
       console.error("Chat error:", error);
       setMessages((prev) => [
@@ -166,17 +238,32 @@ export function ChatBot() {
                 </div>
                 <div>
                   <h3 className="font-display font-semibold">IDForge Assistant</h3>
-                  <p className="text-xs text-muted-foreground">Ask me anything</p>
+                  <p className="text-xs text-muted-foreground">
+                    {isAuthenticated ? "Chat history saved" : "Sign in to save history"}
+                  </p>
                 </div>
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setIsOpen(false)}
-                className="hover:bg-secondary"
-              >
-                <X className="w-5 h-5" />
-              </Button>
+              <div className="flex gap-1">
+                {isAuthenticated && messages.length > 1 && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={clearHistory}
+                    className="hover:bg-destructive/10 hover:text-destructive"
+                    title="Clear history"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setIsOpen(false)}
+                  className="hover:bg-secondary"
+                >
+                  <X className="w-5 h-5" />
+                </Button>
+              </div>
             </div>
 
             {/* Messages */}

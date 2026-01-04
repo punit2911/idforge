@@ -49,6 +49,9 @@ export function Header({ isAuthenticated, user, onLogin, onLogout }: HeaderProps
           <a href="#features" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
             Features
           </a>
+          <Link to="/marketplace" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+            Marketplace
+          </Link>
         </div>
 
         {/* Right Actions */}
@@ -127,6 +130,9 @@ export function Header({ isAuthenticated, user, onLogin, onLogout }: HeaderProps
               <a href="#features" className="text-sm font-medium py-2" onClick={() => setMobileMenuOpen(false)}>
                 Features
               </a>
+              <Link to="/marketplace" className="text-sm font-medium py-2" onClick={() => setMobileMenuOpen(false)}>
+                Marketplace
+              </Link>
               {isAuthenticated ? (
                 <>
                   <Link to="/dashboard" onClick={() => setMobileMenuOpen(false)}>
