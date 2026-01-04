@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, forwardRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,7 +15,7 @@ interface Message {
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat-assistant`;
 
-export function ChatBot() {
+const ChatBotContent = forwardRef<HTMLDivElement>((_, ref) => {
   const { user, isAuthenticated } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
@@ -339,4 +339,8 @@ export function ChatBot() {
       </AnimatePresence>
     </>
   );
-}
+});
+
+ChatBotContent.displayName = "ChatBotContent";
+
+export const ChatBot = ChatBotContent;
