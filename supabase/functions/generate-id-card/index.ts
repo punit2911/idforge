@@ -15,24 +15,6 @@ serve(async (req) => {
   }
 
   try {
-    // Authenticate user
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-      { global: { headers: { Authorization: req.headers.get("Authorization")! } } }
-    );
-
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
-    if (authError || !user) {
-      console.log("Authentication failed:", authError?.message);
-      return new Response(
-        JSON.stringify({ error: "Unauthorized. Please sign in to generate ID cards." }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    console.log("Authenticated user:", user.id);
-
     const { name, title, style, customPrompt, isVertical, userPhotoUrl, logoUrl } = await req.json();
 
     // Input validation
@@ -184,7 +166,7 @@ ${customPrompt ? `Additional requirements: ${customPrompt}` : ""}
 Make it look like a real, premium identity card with depth, shadows, and high production value. The design should be photorealistic and ready for printing.
 Ultra high resolution.`;
 
-    console.log("Generating ID card for user:", user.id, "with photo:", !!userPhotoUrl, "with logo:", !!logoUrl);
+    console.log("Generating ID card with photo:", !!userPhotoUrl, "with logo:", !!logoUrl);
 
     // Build message content - include images if provided
     const messageContent: any[] = [
@@ -252,7 +234,7 @@ Ultra high resolution.`;
     }
 
     const data = await response.json();
-    console.log("AI response received for user:", user.id);
+    console.log("AI response received successfully");
 
     // Extract the generated image
     const imageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
