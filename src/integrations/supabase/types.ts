@@ -38,6 +38,42 @@ export type Database = {
         }
         Relationships: []
       }
+      pending_subscriptions: {
+        Row: {
+          amount: number
+          created_at: string
+          expires_at: string
+          id: string
+          status: string
+          token_package: number
+          transaction_id: string | null
+          user_id: string
+          verified_at: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          expires_at: string
+          id?: string
+          status?: string
+          token_package?: number
+          transaction_id?: string | null
+          user_id: string
+          verified_at?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          expires_at?: string
+          id?: string
+          status?: string
+          token_package?: number
+          transaction_id?: string | null
+          user_id?: string
+          verified_at?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null

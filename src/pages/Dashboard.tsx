@@ -7,6 +7,8 @@ import { Header } from "@/components/Header";
 import { useAuth } from "@/hooks/useAuth";
 import { getUserDesigns, toggleFavorite, deleteDesign } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { QRSubscriptionDialog } from "@/components/QRSubscriptionDialog";
 import { 
   Heart, 
   Trash2, 
@@ -16,7 +18,8 @@ import {
   Plus,
   Eye,
   Globe,
-  Lock
+  Lock,
+  Coins
 } from "lucide-react";
 
 interface SavedDesign {
@@ -32,12 +35,20 @@ interface SavedDesign {
   created_at: string;
 }
 
+interface UsageInfo {
+  tokens_used: number;
+  free_limit: number;
+  is_premium: boolean;
+}
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const { user, profile, isAuthenticated, loading, signOut } = useAuth();
   const [designs, setDesigns] = useState<SavedDesign[]>([]);
   const [loadingDesigns, setLoadingDesigns] = useState(true);
   const [selectedDesign, setSelectedDesign] = useState<SavedDesign | null>(null);
+  const [showSubscriptionDialog, setShowSubscriptionDialog] = useState(false);
+  const [usageInfo, setUsageInfo] = useState<UsageInfo | null>(null);
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
@@ -48,8 +59,26 @@ export default function Dashboard() {
   useEffect(() => {
     if (user?.id) {
       fetchDesigns();
+      fetchUsageInfo();
     }
   }, [user?.id]);
+
+  const fetchUsageInfo = async () => {
+    if (!user?.id) return;
+    const { data } = await supabase
+      .from("usage_tokens")
+      .select("*")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    
+    if (data) {
+      setUsageInfo({
+        tokens_used: data.tokens_used,
+        free_limit: data.free_limit,
+        is_premium: data.is_premium,
+      });
+    }
+  };
 
   const fetchDesigns = async () => {
     if (!user?.id) return;
@@ -151,7 +180,7 @@ export default function Dashboard() {
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
             <div className="glass-card p-4 rounded-xl">
               <p className="text-2xl font-bold text-primary">{designs.length}</p>
               <p className="text-sm text-muted-foreground">Total Designs</p>
@@ -168,13 +197,32 @@ export default function Dashboard() {
               <p className="text-2xl font-bold text-neon-purple">{designs.filter(d => !d.is_public).length}</p>
               <p className="text-sm text-muted-foreground">Private</p>
             </div>
+            {/* Token Usage Card */}
+            <div className="glass-card p-4 rounded-xl">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-2xl font-bold text-primary">
+                    {usageInfo ? Math.max(0, usageInfo.free_limit - usageInfo.tokens_used) : 0}
+                  </p>
+                  <p className="text-sm text-muted-foreground">Tokens Left</p>
+                </div>
+                <Coins className="w-6 h-6 text-primary/60" />
+              </div>
+              {usageInfo?.is_premium && (
+                <span className="text-xs text-accent">Premium</span>
+              )}
+            </div>
           </div>
 
-          {/* Create New Button */}
-          <div className="mb-8">
+          {/* Action Buttons */}
+          <div className="flex flex-wrap gap-3 mb-8">
             <Button variant="neon" onClick={() => navigate("/#create")}>
               <Plus className="w-4 h-4 mr-2" />
               Create New Design
+            </Button>
+            <Button variant="outline" onClick={() => setShowSubscriptionDialog(true)}>
+              <Coins className="w-4 h-4 mr-2" />
+              Buy Tokens
             </Button>
           </div>
 
@@ -337,6 +385,22 @@ export default function Dashboard() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* QR Subscription Dialog */}
+        {user?.id && (
+          <QRSubscriptionDialog
+            isOpen={showSubscriptionDialog}
+            onClose={() => setShowSubscriptionDialog(false)}
+            userId={user.id}
+            onSuccess={() => {
+              fetchUsageInfo();
+              toast({
+                title: "Tokens Added!",
+                description: "Your tokens have been added to your account.",
+              });
+            }}
+          />
+        )}
       </div>
     </>
   );
