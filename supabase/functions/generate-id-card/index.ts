@@ -1,9 +1,12 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+const VALID_STYLES = ["corporate", "student", "futuristic", "minimal", "creative"];
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -12,7 +15,94 @@ serve(async (req) => {
   }
 
   try {
+    // Authenticate user
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+      { global: { headers: { Authorization: req.headers.get("Authorization")! } } }
+    );
+
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
+    if (authError || !user) {
+      console.log("Authentication failed:", authError?.message);
+      return new Response(
+        JSON.stringify({ error: "Unauthorized. Please sign in to generate ID cards." }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log("Authenticated user:", user.id);
+
     const { name, title, style, customPrompt, isVertical, userPhotoUrl } = await req.json();
+
+    // Input validation
+    if (!name || typeof name !== "string") {
+      return new Response(
+        JSON.stringify({ error: "Name is required and must be a string." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (name.length > 100) {
+      return new Response(
+        JSON.stringify({ error: "Name too long. Maximum 100 characters allowed." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (title && typeof title !== "string") {
+      return new Response(
+        JSON.stringify({ error: "Title must be a string." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (title && title.length > 200) {
+      return new Response(
+        JSON.stringify({ error: "Title too long. Maximum 200 characters allowed." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (customPrompt && typeof customPrompt !== "string") {
+      return new Response(
+        JSON.stringify({ error: "Custom prompt must be a string." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (customPrompt && customPrompt.length > 500) {
+      return new Response(
+        JSON.stringify({ error: "Custom prompt too long. Maximum 500 characters allowed." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (style && !VALID_STYLES.includes(style)) {
+      return new Response(
+        JSON.stringify({ error: `Invalid style. Must be one of: ${VALID_STYLES.join(", ")}` }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (userPhotoUrl && typeof userPhotoUrl !== "string") {
+      return new Response(
+        JSON.stringify({ error: "User photo URL must be a string." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate URL format if provided
+    if (userPhotoUrl) {
+      try {
+        new URL(userPhotoUrl);
+      } catch {
+        return new Response(
+          JSON.stringify({ error: "Invalid user photo URL format." }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
     
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
@@ -72,8 +162,7 @@ ${customPrompt ? `Additional requirements: ${customPrompt}` : ""}
 Make it look like a real, premium identity card with depth, shadows, and high production value. The design should be photorealistic and ready for printing.
 Ultra high resolution.`;
 
-    console.log("Generating ID card with photo:", !!userPhotoUrl);
-    console.log("Prompt preview:", prompt.substring(0, 300) + "...");
+    console.log("Generating ID card for user:", user.id, "with photo:", !!userPhotoUrl);
 
     // Build message content - include image if user photo is provided
     let messageContent: any;
@@ -132,7 +221,7 @@ Ultra high resolution.`;
     }
 
     const data = await response.json();
-    console.log("AI response received");
+    console.log("AI response received for user:", user.id);
 
     // Extract the generated image
     const imageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;

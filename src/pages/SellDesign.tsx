@@ -119,11 +119,16 @@ export default function SellDesign() {
           throw uploadError;
         }
 
-        const { data: urlData } = supabase.storage
+        // Use signed URL since bucket is private
+        const { data: signedUrlData, error: signedUrlError } = await supabase.storage
           .from("user-photos")
-          .getPublicUrl(fileName);
+          .createSignedUrl(fileName, 31536000); // 1 year validity
 
-        imageUrl = urlData.publicUrl;
+        if (signedUrlError) {
+          throw signedUrlError;
+        }
+
+        imageUrl = signedUrlData.signedUrl;
       }
 
       // Insert design into database
