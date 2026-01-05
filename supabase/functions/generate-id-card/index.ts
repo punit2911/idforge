@@ -33,7 +33,7 @@ serve(async (req) => {
 
     console.log("Authenticated user:", user.id);
 
-    const { name, title, style, customPrompt, isVertical, userPhotoUrl } = await req.json();
+    const { name, title, style, customPrompt, isVertical, userPhotoUrl, logoUrl } = await req.json();
 
     // Input validation
     if (!name || typeof name !== "string") {
@@ -92,13 +92,31 @@ serve(async (req) => {
       );
     }
 
+    if (logoUrl && typeof logoUrl !== "string") {
+      return new Response(
+        JSON.stringify({ error: "Logo URL must be a string." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Validate URL format if provided
-    if (userPhotoUrl) {
+    if (userPhotoUrl && !userPhotoUrl.startsWith("data:")) {
       try {
         new URL(userPhotoUrl);
       } catch {
         return new Response(
           JSON.stringify({ error: "Invalid user photo URL format." }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
+    if (logoUrl && !logoUrl.startsWith("data:")) {
+      try {
+        new URL(logoUrl);
+      } catch {
+        return new Response(
+          JSON.stringify({ error: "Invalid logo URL format." }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
@@ -134,10 +152,14 @@ serve(async (req) => {
         styleDescription = "modern professional identity card design";
     }
 
-    // Build the prompt based on whether user photo is provided
+    // Build the prompt based on whether user photo and/or logo is provided
     const photoInstructions = userPhotoUrl 
-      ? `IMPORTANT: The attached photo MUST be used as the person's photo on the ID card. Place this photo in the designated photo area of the card. Keep the face clearly visible and well-integrated into the card design.`
+      ? `IMPORTANT: The first attached photo is the person's photo and MUST be used on the ID card. Place this photo in the designated photo area of the card. Keep the face clearly visible and well-integrated into the card design.`
       : `Include a placeholder for a photo (a stylized silhouette or avatar area)`;
+
+    const logoInstructions = logoUrl
+      ? `IMPORTANT: The ${userPhotoUrl ? "second" : "first"} attached image is the company/school/organization logo. This logo MUST be prominently displayed on the ID card, typically in the top corner or header area. Integrate it naturally into the card design while keeping it clearly visible.`
+      : `Include a placeholder for a company/organization logo`;
 
     const prompt = `Generate a high-quality ${orientation} identity card design image.
     
@@ -150,11 +172,11 @@ Design Style: ${styleDescription}
 
 The card should include:
 1. ${photoInstructions}
-2. Name prominently displayed
-3. Title/role text
-4. A unique ID number area
-5. A gold/metallic chip element (like credit cards)
-6. Company/organization logo placeholder
+2. ${logoInstructions}
+3. Name prominently displayed
+4. Title/role text
+5. A unique ID number area
+6. A gold/metallic chip element (like credit cards)
 7. Professional layout with clear hierarchy
 
 ${customPrompt ? `Additional requirements: ${customPrompt}` : ""}
@@ -162,25 +184,34 @@ ${customPrompt ? `Additional requirements: ${customPrompt}` : ""}
 Make it look like a real, premium identity card with depth, shadows, and high production value. The design should be photorealistic and ready for printing.
 Ultra high resolution.`;
 
-    console.log("Generating ID card for user:", user.id, "with photo:", !!userPhotoUrl);
+    console.log("Generating ID card for user:", user.id, "with photo:", !!userPhotoUrl, "with logo:", !!logoUrl);
 
-    // Build message content - include image if user photo is provided
-    let messageContent: any;
+    // Build message content - include images if provided
+    const messageContent: any[] = [
+      {
+        type: "text",
+        text: prompt,
+      },
+    ];
+
+    // Add user photo if provided
     if (userPhotoUrl) {
-      messageContent = [
-        {
-          type: "text",
-          text: prompt,
+      messageContent.push({
+        type: "image_url",
+        image_url: {
+          url: userPhotoUrl,
         },
-        {
-          type: "image_url",
-          image_url: {
-            url: userPhotoUrl,
-          },
+      });
+    }
+
+    // Add logo if provided
+    if (logoUrl) {
+      messageContent.push({
+        type: "image_url",
+        image_url: {
+          url: logoUrl,
         },
-      ];
-    } else {
-      messageContent = prompt;
+      });
     }
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -194,7 +225,7 @@ Ultra high resolution.`;
         messages: [
           {
             role: "user",
-            content: messageContent,
+            content: messageContent.length === 1 ? messageContent[0].text : messageContent,
           },
         ],
         modalities: ["image", "text"],
