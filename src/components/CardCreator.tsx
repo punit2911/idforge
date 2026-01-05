@@ -1,10 +1,11 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { IDCard } from "./IDCard";
+import { ChallengeVerification } from "./ChallengeVerification";
 import { 
   Sparkles, 
   Download, 
@@ -57,8 +58,17 @@ export function CardCreator({ isAuthenticated, userId, onLoginRequired }: CardCr
   const [userPhotoPreview, setUserPhotoPreview] = useState<string | null>(null);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [challengeToken, setChallengeToken] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
+
+  const handleChallengeVerified = useCallback((token: string) => {
+    setChallengeToken(token);
+  }, []);
+
+  const handleChallengeInvalidated = useCallback(() => {
+    setChallengeToken(null);
+  }, []);
 
   const handleImageUpload = async (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -181,6 +191,15 @@ export function CardCreator({ isAuthenticated, userId, onLoginRequired }: CardCr
   };
 
   const handleGenerate = async () => {
+    if (!challengeToken) {
+      toast({
+        title: "Verification required",
+        description: "Please complete the verification challenge first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsGenerating(true);
     
     try {
@@ -192,6 +211,7 @@ export function CardCreator({ isAuthenticated, userId, onLoginRequired }: CardCr
         isVertical,
         userPhotoUrl: userPhotoUrl || undefined,
         logoUrl: logoUrl || undefined,
+        challengeToken,
       });
 
       if (result.success && result.imageUrl) {
@@ -493,7 +513,13 @@ export function CardCreator({ isAuthenticated, userId, onLoginRequired }: CardCr
               </div>
             </div>
 
-            {/* Custom Prompt */}
+            {/* Challenge Verification */}
+            <ChallengeVerification
+              onVerified={handleChallengeVerified}
+              onInvalidated={handleChallengeInvalidated}
+            />
+
+            {/* AI Prompt */}
             <div className="space-y-4">
               <Label className="text-lg font-display font-semibold">AI Prompt (Optional)</Label>
               <Textarea
@@ -510,7 +536,7 @@ export function CardCreator({ isAuthenticated, userId, onLoginRequired }: CardCr
                 variant="hero"
                 size="lg"
                 onClick={handleGenerate}
-                disabled={isGenerating || isUploadingPhoto || isUploadingLogo}
+                disabled={isGenerating || isUploadingPhoto || isUploadingLogo || !challengeToken}
                 className="flex-1"
               >
                 {isGenerating ? (

@@ -15,7 +15,53 @@ serve(async (req) => {
   }
 
   try {
-    const { name, title, style, customPrompt, isVertical, userPhotoUrl, logoUrl } = await req.json();
+    const { name, title, style, customPrompt, isVertical, userPhotoUrl, logoUrl, challengeToken } = await req.json();
+
+    // Validate challenge token
+    if (!challengeToken || typeof challengeToken !== "string") {
+      return new Response(
+        JSON.stringify({ error: "Challenge verification required." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Decode and validate the challenge token
+    try {
+      const decoded = atob(challengeToken);
+      const parts = decoded.split(":");
+      if (parts.length !== 4) {
+        throw new Error("Invalid token format");
+      }
+      
+      const [aStr, bStr, answerStr, timestampStr] = parts;
+      const a = parseInt(aStr, 10);
+      const b = parseInt(bStr, 10);
+      const answer = parseInt(answerStr, 10);
+      const timestamp = parseInt(timestampStr, 10);
+      
+      // Verify the math is correct
+      if (a + b !== answer) {
+        throw new Error("Invalid challenge answer");
+      }
+      
+      // Check token is not too old (5 minutes max)
+      const now = Date.now();
+      const maxAge = 5 * 60 * 1000; // 5 minutes
+      if (now - timestamp > maxAge) {
+        return new Response(
+          JSON.stringify({ error: "Challenge expired. Please refresh and try again." }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      
+      console.log("Challenge verified successfully");
+    } catch (tokenError) {
+      console.error("Token validation failed:", tokenError);
+      return new Response(
+        JSON.stringify({ error: "Invalid challenge token. Please complete verification." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     // Input validation
     if (!name || typeof name !== "string") {

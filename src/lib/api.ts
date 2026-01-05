@@ -8,6 +8,7 @@ interface GenerateCardParams {
   isVertical?: boolean;
   userPhotoUrl?: string;
   logoUrl?: string;
+  challengeToken?: string;
 }
 
 interface GenerateCardResult {
