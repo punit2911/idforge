@@ -8,7 +8,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { getUserDesigns, toggleFavorite, deleteDesign } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { QRSubscriptionDialog } from "@/components/QRSubscriptionDialog";
 import { 
   Heart, 
   Trash2, 
@@ -47,7 +46,6 @@ export default function Dashboard() {
   const [designs, setDesigns] = useState<SavedDesign[]>([]);
   const [loadingDesigns, setLoadingDesigns] = useState(true);
   const [selectedDesign, setSelectedDesign] = useState<SavedDesign | null>(null);
-  const [showSubscriptionDialog, setShowSubscriptionDialog] = useState(false);
   const [usageInfo, setUsageInfo] = useState<UsageInfo | null>(null);
 
   useEffect(() => {
@@ -220,10 +218,6 @@ export default function Dashboard() {
               <Plus className="w-4 h-4 mr-2" />
               Create New Design
             </Button>
-            <Button variant="outline" onClick={() => setShowSubscriptionDialog(true)}>
-              <Coins className="w-4 h-4 mr-2" />
-              Buy Tokens
-            </Button>
           </div>
 
           {/* Designs Grid */}
@@ -386,21 +380,6 @@ export default function Dashboard() {
           )}
         </AnimatePresence>
 
-        {/* QR Subscription Dialog */}
-        {user?.id && (
-          <QRSubscriptionDialog
-            isOpen={showSubscriptionDialog}
-            onClose={() => setShowSubscriptionDialog(false)}
-            userId={user.id}
-            onSuccess={() => {
-              fetchUsageInfo();
-              toast({
-                title: "Tokens Added!",
-                description: "Your tokens have been added to your account.",
-              });
-            }}
-          />
-        )}
       </div>
     </>
   );
