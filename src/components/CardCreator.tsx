@@ -41,9 +41,11 @@ interface CardCreatorProps {
   isAuthenticated?: boolean;
   userId?: string;
   onLoginRequired?: () => void;
+  tokensRemaining?: number;
+  onTokensUpdated?: () => void;
 }
 
-export function CardCreator({ isAuthenticated, userId, onLoginRequired }: CardCreatorProps) {
+export function CardCreator({ isAuthenticated, userId, onLoginRequired, tokensRemaining = 10, onTokensUpdated }: CardCreatorProps) {
   const [selectedStyle, setSelectedStyle] = useState<CardStyle>("futuristic");
   const [isVertical, setIsVertical] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -200,6 +202,16 @@ export function CardCreator({ isAuthenticated, userId, onLoginRequired }: CardCr
       return;
     }
 
+    // Check if user has tokens remaining
+    if (tokensRemaining <= 0) {
+      toast({
+        title: "No tokens remaining",
+        description: "You've used all your tokens. Please purchase more to continue.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsGenerating(true);
     
     try {
@@ -216,6 +228,31 @@ export function CardCreator({ isAuthenticated, userId, onLoginRequired }: CardCr
 
       if (result.success && result.imageUrl) {
         setGeneratedImageUrl(result.imageUrl);
+        
+        // Update token usage in database
+        if (isAuthenticated && userId) {
+          await supabase
+            .from("usage_tokens")
+            .update({ tokens_used: supabase.rpc ? undefined : undefined })
+            .eq("user_id", userId);
+          
+          // Increment tokens_used
+          const { data: currentUsage } = await supabase
+            .from("usage_tokens")
+            .select("tokens_used")
+            .eq("user_id", userId)
+            .maybeSingle();
+          
+          if (currentUsage) {
+            await supabase
+              .from("usage_tokens")
+              .update({ tokens_used: currentUsage.tokens_used + 1 })
+              .eq("user_id", userId);
+          }
+          
+          onTokensUpdated?.();
+        }
+        
         const hasUploads = userPhotoUrl || logoUrl;
         toast({
           title: "Card generated!",

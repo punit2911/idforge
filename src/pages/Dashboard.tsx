@@ -218,6 +218,10 @@ export default function Dashboard() {
               <Plus className="w-4 h-4 mr-2" />
               Create New Design
             </Button>
+            <Button variant="outline" onClick={() => navigate("/pricing")}>
+              <Coins className="w-4 h-4 mr-2" />
+              Buy More Tokens
+            </Button>
           </div>
 
           {/* Designs Grid */}
