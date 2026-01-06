@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Header } from "@/components/Header";
 import { HeroSection } from "@/components/HeroSection";
 import { CardGallery } from "@/components/CardGallery";
@@ -11,10 +11,35 @@ import { InstallBanner } from "@/components/InstallBanner";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
 import { Helmet } from "react-helmet-async";
+import { supabase } from "@/integrations/supabase/client";
 
 const Index = () => {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [tokensRemaining, setTokensRemaining] = useState(10);
   const { user, profile, isAuthenticated, signInWithGoogle, signOut, loading } = useAuth();
+
+  const fetchTokens = useCallback(async () => {
+    if (!user?.id) {
+      setTokensRemaining(10);
+      return;
+    }
+    
+    const { data } = await supabase
+      .from("usage_tokens")
+      .select("tokens_used, free_limit")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    
+    if (data) {
+      setTokensRemaining(Math.max(0, data.free_limit - data.tokens_used));
+    } else {
+      setTokensRemaining(10);
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    fetchTokens();
+  }, [fetchTokens]);
 
   const handleLogin = () => {
     setIsAuthModalOpen(true);
@@ -94,6 +119,8 @@ const Index = () => {
             isAuthenticated={isAuthenticated}
             userId={user?.id}
             onLoginRequired={handleLoginRequired}
+            tokensRemaining={tokensRemaining}
+            onTokensUpdated={fetchTokens}
           />
           
           <FeaturesSection />
