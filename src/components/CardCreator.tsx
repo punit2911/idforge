@@ -64,12 +64,19 @@ export function CardCreator({ isAuthenticated, userId, onLoginRequired, tokensRe
   const fileInputRef = useRef<HTMLInputElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
 
+  const [challengeKey, setChallengeKey] = useState(0);
+
   const handleChallengeVerified = useCallback((token: string) => {
     setChallengeToken(token);
   }, []);
 
   const handleChallengeInvalidated = useCallback(() => {
     setChallengeToken(null);
+  }, []);
+
+  const resetChallenge = useCallback(() => {
+    setChallengeToken(null);
+    setChallengeKey(prev => prev + 1);
   }, []);
 
   const handleImageUpload = async (
@@ -229,13 +236,11 @@ export function CardCreator({ isAuthenticated, userId, onLoginRequired, tokensRe
       if (result.success && result.imageUrl) {
         setGeneratedImageUrl(result.imageUrl);
         
+        // Reset challenge for next generation
+        resetChallenge();
+        
         // Update token usage in database
         if (isAuthenticated && userId) {
-          await supabase
-            .from("usage_tokens")
-            .update({ tokens_used: supabase.rpc ? undefined : undefined })
-            .eq("user_id", userId);
-          
           // Increment tokens_used
           const { data: currentUsage } = await supabase
             .from("usage_tokens")
@@ -552,6 +557,7 @@ export function CardCreator({ isAuthenticated, userId, onLoginRequired, tokensRe
 
             {/* Challenge Verification */}
             <ChallengeVerification
+              key={challengeKey}
               onVerified={handleChallengeVerified}
               onInvalidated={handleChallengeInvalidated}
             />
