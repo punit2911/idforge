@@ -162,7 +162,7 @@ export default function Dashboard() {
       <div className="min-h-screen bg-background">
         <Header 
           isAuthenticated={isAuthenticated}
-          user={profile ? { name: profile.display_name || "User", email: profile.email || "" } : null}
+          user={profile ? { id: user?.id, name: profile.display_name || "User", email: profile.email || "" } : null}
           onLogout={handleLogout}
         />
 

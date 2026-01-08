@@ -1,22 +1,41 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Menu, X, CreditCard, Sparkles, User, LogOut, Moon, Sun, LayoutDashboard } from "lucide-react";
+import { Menu, X, CreditCard, Sparkles, User, LogOut, Moon, Sun, LayoutDashboard, Shield } from "lucide-react";
 import { useTheme } from "@/hooks/useTheme";
+import { supabase } from "@/integrations/supabase/client";
 
 interface HeaderProps {
   isAuthenticated?: boolean;
-  user?: { name: string; email: string; avatar?: string } | null;
+  user?: { name: string; email: string; avatar?: string; id?: string } | null;
   onLogin?: () => void;
   onLogout?: () => void;
 }
 
 export function Header({ isAuthenticated, user, onLogin, onLogout }: HeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const { theme, toggleTheme } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const checkAdminRole = async () => {
+      if (!user?.id) {
+        setIsAdmin(false);
+        return;
+      }
+      
+      const { data } = await supabase.rpc('has_role', { 
+        _user_id: user.id, 
+        _role: 'admin' 
+      });
+      setIsAdmin(data === true);
+    };
+
+    checkAdminRole();
+  }, [user?.id]);
 
   const handleNavClick = (hash: string) => {
     if (location.pathname !== "/") {
@@ -91,6 +110,14 @@ export function Header({ isAuthenticated, user, onLogin, onLogout }: HeaderProps
                   Dashboard
                 </Button>
               </Link>
+              {isAdmin && (
+                <Link to="/admin">
+                  <Button variant="ghost" size="sm" className="text-primary">
+                    <Shield className="w-4 h-4 mr-2" />
+                    Admin
+                  </Button>
+                </Link>
+              )}
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center">
                   {user.avatar ? (
@@ -154,6 +181,14 @@ export function Header({ isAuthenticated, user, onLogin, onLogout }: HeaderProps
                       Dashboard
                     </Button>
                   </Link>
+                  {isAdmin && (
+                    <Link to="/admin" onClick={() => setMobileMenuOpen(false)}>
+                      <Button variant="ghost" className="w-full justify-start text-primary">
+                        <Shield className="w-4 h-4 mr-2" />
+                        Admin Panel
+                      </Button>
+                    </Link>
+                  )}
                   <Button variant="ghost" onClick={onLogout} className="justify-start">
                     <LogOut className="w-4 h-4 mr-2" />
                     Sign Out
