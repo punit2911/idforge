@@ -83,10 +83,12 @@ const Index = () => {
   };
 
   const userInfo = profile ? {
+    id: user?.id,
     name: profile.display_name || "User",
     email: profile.email || "",
     avatar: profile.avatar_url || undefined,
   } : user ? {
+    id: user.id,
     name: user.user_metadata?.full_name || user.email?.split("@")[0] || "User",
     email: user.email || "",
     avatar: user.user_metadata?.avatar_url,
