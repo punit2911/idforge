@@ -10,6 +10,7 @@ import Marketplace from "./pages/Marketplace";
 import SellDesign from "./pages/SellDesign";
 import Install from "./pages/Install";
 import Pricing from "./pages/Pricing";
+import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -28,6 +29,7 @@ const App = () => (
             <Route path="/sell" element={<SellDesign />} />
             <Route path="/install" element={<Install />} />
             <Route path="/pricing" element={<Pricing />} />
+            <Route path="/admin" element={<Admin />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
