@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { IDCard } from "./IDCard";
+import { IDCardEditor } from "./IDCardEditor";
 import { ChallengeVerification } from "./ChallengeVerification";
 import { 
   Sparkles, 
@@ -20,7 +21,8 @@ import {
   Save,
   Upload,
   X,
-  Camera
+  Camera,
+  Edit
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { generateIDCard, saveDesign } from "@/lib/api";
@@ -61,6 +63,7 @@ export function CardCreator({ isAuthenticated, userId, onLoginRequired, tokensRe
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [challengeToken, setChallengeToken] = useState<string | null>(null);
+  const [isEditorOpen, setIsEditorOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
 
@@ -340,6 +343,22 @@ export function CardCreator({ isAuthenticated, userId, onLoginRequired, tokensRe
         variant: "destructive",
       });
     }
+  };
+
+  const handleEdit = () => {
+    if (!generatedImageUrl) {
+      toast({
+        title: "No image to edit",
+        description: "Please generate an ID card first.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setIsEditorOpen(true);
+  };
+
+  const handleEditorSave = (editedImageUrl: string) => {
+    setGeneratedImageUrl(editedImageUrl);
   };
 
   return (
@@ -676,6 +695,17 @@ export function CardCreator({ isAuthenticated, userId, onLoginRequired, tokensRe
                   Download PNG
                 </Button>
                 <Button 
+                  variant="outline" 
+                  className="flex-1" 
+                  onClick={handleEdit}
+                  disabled={!generatedImageUrl}
+                >
+                  <Edit className="w-5 h-5" />
+                  Edit
+                </Button>
+              </div>
+              <div className="flex gap-3">
+                <Button 
                   variant="glass" 
                   className="flex-1" 
                   onClick={handleSave}
@@ -696,6 +726,17 @@ export function CardCreator({ isAuthenticated, userId, onLoginRequired, tokensRe
           </motion.div>
         </div>
       </div>
+
+      {/* ID Card Editor Modal */}
+      {generatedImageUrl && (
+        <IDCardEditor
+          imageUrl={generatedImageUrl}
+          isOpen={isEditorOpen}
+          onClose={() => setIsEditorOpen(false)}
+          onSave={handleEditorSave}
+          name={name}
+        />
+      )}
     </section>
   );
 }
