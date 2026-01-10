@@ -198,6 +198,24 @@ const Admin = () => {
 
       if (tokenError) throw tokenError;
 
+      // Send email notification
+      if (payment.user_email && payment.user_email !== "Unknown") {
+        try {
+          await supabase.functions.invoke("send-payment-notification", {
+            body: {
+              email: payment.user_email,
+              type: "verified",
+              tokenPackage: payment.token_package,
+              amount: payment.amount,
+              transactionId: payment.transaction_id,
+            },
+          });
+        } catch (emailError) {
+          console.error("Failed to send email notification:", emailError);
+          // Don't fail the whole operation if email fails
+        }
+      }
+
       toast.success(`Payment verified! Added ${payment.token_package} tokens`);
       fetchData();
     } catch (error) {
@@ -214,6 +232,22 @@ const Admin = () => {
         .eq("id", payment.id);
 
       if (error) throw error;
+
+      // Send email notification
+      if (payment.user_email && payment.user_email !== "Unknown") {
+        try {
+          await supabase.functions.invoke("send-payment-notification", {
+            body: {
+              email: payment.user_email,
+              type: "rejected",
+              transactionId: payment.transaction_id,
+            },
+          });
+        } catch (emailError) {
+          console.error("Failed to send email notification:", emailError);
+          // Don't fail the whole operation if email fails
+        }
+      }
 
       toast.success("Payment rejected");
       fetchData();
